@@ -1,7 +1,6 @@
 import ./ksw2pkg/ksw2_c
 export ksw2_c.KSW_EZ_RIGHT
 export ksw2_c.KSW_EZ_EXTZ_ONLY
-
 type
   Ez* = ref object of RootObj
     c: ksw_extz_t
@@ -50,13 +49,33 @@ proc cigar_string*(e: Ez, s:var string, full:bool=false): string =
       s.add($c.length & c.str)
   return s
 
-proc qstop(e: Ez): int {.inline.} =
+proc qstop*(e: Ez): int {.inline.} =
   ## 1-based stop of the query alignment
   return e.c.max_q + 1
 
-proc tstop(e: Ez): int {.inline.} =
+proc tstop*(e: Ez): int {.inline.} =
   ## 1-based stop of the target alignment
   return e.c.max_t + 1
+
+proc qstart*(e: Ez): int {.inline.} =
+  ## 0-based position of the first match in the query alignment
+  result = -1
+  var off = 0
+  for c in e.cigar:
+    if c.op == 0:
+      return off
+    if c.op != 2: # M or I
+      off += c.length.int
+
+proc tstart*(e: Ez): int {.inline.} =
+  ## 0-based position of the first match in the target alignment
+  result = -1
+  var off = 0
+  for c in e.cigar:
+    if c.op == 0: # M
+      return off
+    if c.op != 1: # M or D
+      off += c.length.int
 
 proc max_event_length*(e: Ez): uint32 {.inline.} =
   result = 0
@@ -207,6 +226,10 @@ when isMainModule:
       check cig[2].length == 26
 
       check cig.len == 3
+
+    test "starts":
+      check ez.qstart == 0
+      check ez.tstart == 0
 
     test "ends":
       check ez.qstop == 98
