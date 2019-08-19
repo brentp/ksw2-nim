@@ -15,22 +15,24 @@ type
   cigar_pair* = tuple[op:uint32, length: uint32]
 
 iterator full_cigar*(e:Ez): cigar_pair =
-  var cig = cast[ptr CArray[uint32]](e.c.cigar)
-  for i in 0..<e.c.n_cigar:
-    yield (cig[i] and 0xf, cig[i] shr 4)
+  if e.c.n_cigar > 0:
+    var cig = cast[ptr CArray[uint32]](e.c.cigar)
+    for i in 0..<e.c.n_cigar:
+      yield (cig[i] and 0xf, cig[i] shr 4)
 
 iterator cigar*(e:Ez): cigar_pair =
   ## report the cigar up to the max score for the query.
-  var cig = cast[ptr CArray[uint32]](e.c.cigar)
-  var result:cigar_pair
-  var max_off = uint32(e.c.max_q)
-  var off = 0'u32
-  for i in 0..<e.c.n_cigar:
-    if off >= max_off: break
-    result = (cig[i] and 0xf, cig[i] shr 4)
-    if result.op != 2:
-      off += result.length
-    yield result
+  if e.c.n_cigar > 0:
+    var cig = cast[ptr CArray[uint32]](e.c.cigar)
+    var result:cigar_pair
+    var max_off = uint32(e.c.max_q)
+    var off = 0'u32
+    for i in 0..<e.c.n_cigar:
+      if off >= max_off: break
+      result = (cig[i] and 0xf, cig[i] shr 4)
+      if result.op != 2:
+        off += result.length
+      yield result
 
 proc n_cigar*(e:Ez): int {.inline.} =
   return e.c.n_cigar.int
@@ -146,9 +148,14 @@ proc new_ez*(match:int8=1, mismatch:int8=(-2), gap_open:int8=4, gap_ext:int8=1):
             q:new_seq[uint8](1000),
             t:new_seq[uint8](1000))
 
+proc ksw_reset_extz*(cp: ptr ksw_extz_t) {.inline.} =
+  cp.max_q = -1'i8; cp.max_t = -1'i8; cp.mqe_t = -1'i8; cp.mte_q = -1'i8
+  cp.max = 0; cp.score = KSW_NEG_INF; cp.mqe = KSW_NEG_INF; cp.mte = KSW_NEG_INF
+  cp.n_cigar = 0; cp.zdropped = 0; #cp.reach_end = 0
+
 proc align_to*(query: var seq[uint8], target: var seq[uint8], ez:Ez, flag:cint=0, bw:int=(-1), z:int=(-1)) {.inline.} =
   ## align an encoded query to an encoded target.
-  ez.c.n_cigar = 0
+  ksw_reset_extz(ez.c.addr)
   ksw_extz2_sse(nil.pointer, query.len.cint, cast[ptr uint8](query[0].addr),
                 target.len.cint, cast[ptr uint8](target[0].addr),
                 5.int8, cast[ptr int8](ez.mat[0].addr),

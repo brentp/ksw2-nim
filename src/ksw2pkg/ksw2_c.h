@@ -44,9 +44,6 @@ typedef struct {
 } ksw_extz_t;
 
 
-static void ksw_reset_extz(ksw_extz_t *ez);
-
-
 /**
  * NW-like extension
  *

@@ -30,7 +30,6 @@ type
     cigar*: ptr uint32
 
 
-proc ksw_reset_extz*(ez: ptr ksw_extz_t) {.cdecl, importc: "ksw_reset_extz".}
 ## *
 ##  NW-like extension
 ## 
